@@ -1,18 +1,15 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ega4432/extchanger/converter"
 )
 
 var (
@@ -23,13 +20,13 @@ var (
 func init() {
 	flag.StringVar(&dir, "d", "", "target directory")
 	flag.BoolVar(&recursive, "r", false, "change extension recursively")
-	flag.StringVar(&from, "from", "", "from extension")
-	flag.StringVar(&to, "to", "", "new extension")
+	flag.StringVar(&from, "from", "jpg", "from extension")
+	flag.StringVar(&to, "to", "png", "new extension")
 	flag.Parse()
 }
 
 func main() {
-	if ok := isExistDir(dir); !ok || dir == "" || to == "" || from == "" {
+	if ok := isExistDir(dir); !ok || dir == "" {
 		usage()
 	}
 
@@ -50,7 +47,7 @@ func main() {
 		}
 
 		newFileName := getExtension(file, ext)
-		err := convert(file, newFileName)
+		err := converter.Convert(file, newFileName, to)
 		if err != nil {
 			log.Fatalln(err.Error())
 			os.Exit(1)
@@ -89,47 +86,6 @@ func searchDir(dirName string, isRecursive bool) []string {
 
 func getExtension(filePath, extension string) string {
 	return filePath[:len(filePath)-len(extension)] + to
-}
-
-func convert(filePath, newExt string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return errors.New("failed to open file")
-	}
-	defer file.Close()
-
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return errors.New("failed to decode image")
-	}
-	dst, err := os.Create(newExt)
-
-	if err != nil {
-		return errors.New("failed to create new file")
-	}
-	defer dst.Close()
-
-	switch to {
-	case ".jpg", ".jpeg":
-		err = jpeg.Encode(dst, img, nil)
-	case ".png":
-		err = png.Encode(dst, img)
-	default:
-		fmt.Println("default!")
-		err = errors.New("invalid extension")
-	}
-
-	if err != nil {
-		log.Println(err.Error())
-		return errors.New("failed to encode image")
-	}
-
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		return errors.New("failed copy file")
-	}
-	fmt.Printf("Converted:\t %s\t->\t %s\n", filePath, newExt)
-	return nil
 }
 
 func usage() {
